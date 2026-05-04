@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EL FRS | Attendance Dashboard</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="dark-theme">
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-wrapper">
+        <div class="login-card glass">
+            <div class="login-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h2 class="login-title">EL FRS Login</h2>
+            <p class="login-subtitle">Privacy Login: Enter your credentials</p>
+            <form id="login-form" style="width: 100%;">
+                <div class="input-group">
+                    <input type="text" id="login-user" placeholder="Username" required autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <input type="password" id="login-pass" placeholder="Password" required
+                        autocomplete="current-password">
+                </div>
+                <div id="login-error"
+                    style="display: none; color: #ef4444; font-size: 0.8rem; margin-bottom: 1rem; text-align: center; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 6px;">
+                    Incorrect username or password.</div>
+                <button type="submit" class="btn btn-primary"
+                    style="width: 100%; justify-content: center; padding: 0.8rem; font-size: 1rem; margin-top: 0.5rem;">Sign
+                    In</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="dashboard-container" id="main-dashboard"
+        style="display: none; opacity: 0; transition: opacity 0.4s ease;">
+        <!-- Sidebar -->
+        <aside class="sidebar glass" id="sidebar">
+            <button id="sidebar-toggle" class="sidebar-toggle-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <div class="logo">
+                <img src="/static/logo.png" alt="Entro Labs" id="sidebar-logo"
+                    style="width: 100%; height: auto; max-width: 160px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
+            </div>
+            <nav>
+                <a href="#" class="nav-item active" id="nav-dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-employees">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Employees</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-calendar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Calendar</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-reports">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Reports</span>
+                </a>
+            </nav>
+
+
+
+            <div class="user-profile">
+                <img src="/static/professional_avatar.png" alt="User Avatar"
+                    style="width: 30px; height: 30px; border-radius: 10px; object-fit: cover; border: 2px solid var(--glass-border);">
+                <div class="user-info">
+                    <span class="user-name">Entrolabs</span>
+                    <span class="user-role">HR Manager</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content">
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="dashboard-view active">
+                <header class="top-nav glass">
+                    <div class="header-left">
+                        <div class="month-selector-group glass">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            <span class="month-label-text">Attendance for the month of</span>
+                            <select id="month-selector" class="month-select-clean">
+                                <!-- Dynamic Months -->
+                            </select>
+                        </div>
+                        <p class="subtitle">Welcome back! Here's the attendance summary.</p>
+                    </div>
+                    <div class="header-right">
+                        <div class="search-bar glass">
+                            <svg id="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" placeholder="Search employees..." id="employee-search">
+                        </div>
+                        <div class="last-updated-wrapper">
+                            <div class="sync-indicator">
+                                <span class="sync-dot"></span>
+                                <span id="last-updated-text" class="subtitle" style="font-size: 0.75rem; margin: 0;"></span>
+                            </div>
+                        </div>
+                        <button id="refresh-btn" class="btn btn-secondary glass" title="Refresh Data from Google Sheets">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px;">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                        <button class="btn btn-primary">Export CSV</button>
+                    </div>
+                </header>
+
+                <div class="dashboard-grid">
+                    <!-- Stats Cards -->
+                    <div class="card stat-card glass" id="total-days">
+                        <div class="card-icon blue">📅</div>
+                        <div class="card-value">28</div>
+                        <div class="card-label">Total Days</div>
+                    </div>
+                    <div class="card stat-card glass" id="avg-attendance">
+                        <div class="card-icon green">📊</div>
+                        <div class="card-value">--%</div>
+                        <div class="card-label">Avg. Attendance</div>
+                    </div>
+                    <div class="card stat-card glass" id="total-employees">
+                        <div class="card-icon purple">👥</div>
+                        <div class="card-value">--</div>
+                        <div class="card-label">Total Employees</div>
+                    </div>
+                    <div class="card stat-card glass" id="top-perf">
+                        <div class="card-icon gold">🏆</div>
+                        <div class="card-value">--</div>
+                        <div class="card-label">Top Performer</div>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="card chart-card glass grid-span-2">
+                        <h3>Daily Attendance Trend</h3>
+                        <canvas id="attendanceTrendChart"></canvas>
+                    </div>
+                    <div class="card chart-card glass">
+                        <h3>Monthly Status</h3>
+                        <canvas id="statusDistChart"></canvas>
+                    </div>
+
+                    <!-- NEW SECTION -->
+                    <div class="card glass leave-roster-card">
+                        <h3>On Leave</h3>
+                        <div class="leave-roster-content" id="leave-roster">
+                            <!-- Dates and employee names will be injected here -->
+                        </div>
+                    </div>
+
+
+
+                    <!-- Table Section -->
+                    <div class="card table-card glass grid-span-4">
+                        <div class="table-header">
+                            <h3>Detailed Attendance</h3>
+                            <div class="filters">
+                                <select id="department-filter" class="glass-select">
+                                    <option value="all">All Departments</option>
+                                </select>
+                                <select id="attendance-filter" class="glass-select">
+                                    <option value="all">All Scores</option>
+                                    <option value="excellent">Excellent (>90%)</option>
+                                    <option value="good">Good (75-90%)</option>
+                                    <option value="low">Low (<75%)< /option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-wrapper">
+                            <table id="employee-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>ID</th>
+                                        <th>Department</th>
+                                        <th>Attendance</th>
+                                        <th>Percentage</th>
+                                        <th style="text-align: center;">View Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employee-list">
+                                    <!-- Data will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Employees View -->
+            <section id="view-employees" class="dashboard-view" style="display: none;">
+                <header class="top-nav glass">
+                    <div class="header-left">
+                        <h1>Employees <span class="badge" id="emp-count-badge">--</span></h1>
+                        <p class="subtitle">Complete employee directory and performance profiles.</p>
+                    </div>
+                </header>
+                <div class="employee-grid" id="employee-details-grid">
+                    <!-- Cards will be injected here -->
+                </div>
+            </section>
+
+            <!-- Reports View -->
+            <section id="view-reports" class="dashboard-view" style="display: none;">
+                <header class="top-nav glass">
+                    <div class="header-left">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <h1>Attendance Reports</h1>
+                            <div class="month-selector-group glass" style="margin-left: 1rem;">
+                                <select id="reports-month-selector" class="month-select-clean">
+                                    <!-- Dynamic Months -->
+                                </select>
+                            </div>
+                        </div>
+                        <p class="subtitle">Exportable raw data and full attendance history.</p>
+                    </div>
+                    <button class="btn btn-primary" id="btn-download-csv">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
+                            style="width: 16px; margin-right: 6px; vertical-align: middle;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download CSV
+                    </button>
+                </header>
+                <div class="card table-card glass">
+                    <div class="table-wrapper">
+                        <table id="reports-table">
+                            <thead id="reports-head"></thead>
+                            <tbody id="reports-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Full Calendar View -->
+            <section id="view-calendar" class="dashboard-view" style="display: none;">
+                <header class="top-nav glass">
+                    <div class="header-left">
+                        <h1>Working Days Calendar</h1>
+                        <p class="subtitle">Click on any working day to view employee details and hours.</p>
+                    </div>
+                </header>
+                <div class="card glass big-cal-card">
+                    <div class="big-cal-header">
+                        <button class="cal-nav-btn" id="big-cal-prev">&#8249;</button>
+                        <h2 id="big-cal-title">February 2026</h2>
+                        <button class="cal-nav-btn" id="big-cal-next">&#8250;</button>
+                    </div>
+                    <div class="big-cal-weekdays">
+                        <span>Sun</span><span>Mon</span><span>Tue</span>
+                        <span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </div>
+                    <div class="big-cal-grid" id="big-cal-grid">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals, etc. -->
+    <div id="day-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content glass" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="modal-day-title">Date Details</h2>
+                <button class="close-btn"
+                    onclick="document.getElementById('day-modal').style.display='none'">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-stats" id="modal-day-stats"></div>
+                <div class="employee-list-modal" id="modal-emp-list">
+                    <!-- Employees listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Day Data Modal -->
+    <div id="emp-day-modal" class="modal-overlay" style="display: none; z-index: 1001;">
+        <div class="modal-content glass" style="max-width: 400px; text-align: center;">
+            <div class="modal-header" style="justify-content: center; position: relative;">
+                <h2 id="emp-day-name">Employee Name</h2>
+                <button class="close-btn" style="position: absolute; right: 0;"
+                    onclick="document.getElementById('emp-day-modal').style.display='none'">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 1.5rem;" id="emp-day-date">Date
+                </div>
+
+                <div id="emp-day-status-card" class="card glass" style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;"
+                        id="emp-day-status-label">Status</div>
+                    <div style="font-size: 2rem; font-weight: 800; margin: 0.5rem 0;" id="emp-day-status-value">Present
+                    </div>
+                </div>
+
+                <!-- Granular Metrics Grid -->
+                <div class="modal-metrics-grid" id="emp-day-metrics" style="display: none;">
+                    <div class="metric-box glass">
+                        <span class="m-label">Login</span>
+                        <span class="m-val" id="emp-day-login">--:--</span>
+                    </div>
+                    <div class="metric-box glass">
+                        <span class="m-label">Logout</span>
+                        <span class="m-val" id="emp-day-logout">--:--</span>
+                    </div>
+                    <div class="metric-box glass">
+                        <span class="m-label">Break</span>
+                        <span class="m-val" id="emp-day-break">--:--</span>
+                    </div>
+                    <div class="metric-box glass highlight">
+                        <span class="m-label">Total Hours</span>
+                        <span class="m-val" id="emp-day-total">--:--</span>
+                    </div>
+                </div>
+
+                <div class="emp-stats-row" style="margin-top: 1rem; text-align: left;">
+                    <div class="emp-stat-box" style="background: rgba(255,255,255,0.5);">
+                        <span class="emp-stat-label">Employee ID</span>
+                        <span class="emp-stat-val" style="font-size: 1rem; color: var(--text-main);"
+                            id="emp-day-id">--</span>
+                    </div>
+                    <div class="emp-stat-box" style="background: rgba(255,255,255,0.5);">
+                        <span class="emp-stat-label">Department</span>
+                        <span class="emp-stat-val" style="font-size: 1rem; color: var(--text-main);"
+                            id="emp-day-dept">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-overlay">
+        <div class="loader"></div>
+    </div>
+
+    <script src="static/data.js"></script>
+    <script src="static/app.js"></script>
+</body>
+
+</html>
