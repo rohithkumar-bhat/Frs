@@ -17,7 +17,10 @@ async def lifespan(app: FastAPI):
     """Lifecycle manager to handle background tasks."""
     # Run extraction on startup
     print("Startup: Running initial data extraction...")
-    run_extraction()
+    try:
+        run_extraction()
+    except Exception as e:
+        print(f"Startup extraction failed: {e}")
     
     # Start periodic background task (every 5 minutes)
     task = asyncio.create_task(periodic_refresh())
