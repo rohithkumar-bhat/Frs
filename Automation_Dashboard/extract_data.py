@@ -131,25 +131,33 @@ def run_extraction():
         # 3. Identify sheets
         month_sheet = None
         daily_sheets = []
+        print(f"Workbook sheets found: {', '.join(wb.sheetnames)}")
         for name in wb.sheetnames:
             lname = name.lower().strip()
-            if 'month' in lname: month_sheet = wb[name]
-            elif 'daily' in lname: daily_sheets.append(wb[name])
+            if 'month' in lname: 
+                month_sheet = wb[name]
+                print(f"  Selected for Monthly parsing: '{name}'")
+            elif 'daily' in lname: 
+                daily_sheets.append(wb[name])
+                print(f"  Selected for Daily parsing: '{name}'")
         
         if not month_sheet:
-            # Fallback to the largest sheet or first sheet
             month_sheet = wb.active
+            print(f"  No 'Month' sheet found. Falling back to active sheet: '{month_sheet.title}'")
 
         # Check for a dedicated DAILY_SHEET_URL
         daily_export_url = get_sheet_url_xlsx("DAILY_SHEET_URL")
         if daily_export_url:
-            print(f"Fetching Daily XLSX from dedicated Google Sheet...")
+            print(f"Fetching Daily XLSX from dedicated Google Sheet URL...")
             response_daily = requests.get(daily_export_url, timeout=60)
             response_daily.raise_for_status()
             
             wb_daily = openpyxl.load_workbook(BytesIO(response_daily.content), data_only=True)
-            # If using a dedicated daily sheet, assume ALL tabs contain daily data, or at least parse them all
-            daily_sheets = [wb_daily[name] for name in wb_daily.sheetnames]
+            print(f"Dedicated Daily Workbook sheets: {', '.join(wb_daily.sheetnames)}")
+            for name in wb_daily.sheetnames:
+                daily_sheets.append(wb_daily[name])
+                print(f"  Added daily sheet: '{name}'")
+
 
 
         # 4. Parse Monthly Data
@@ -295,11 +303,16 @@ def run_extraction():
                                 'break': break_t,
                                 'total': total
                             }
+                            print(f"      Matched: {emp_id} on {row_date} ({login or 'No Login'})")
                             
                             # Automatically update calendar status if not already set or NA
                             current_status = str(employee_map[emp_id].get(row_date, '')).strip().upper()
                             if not current_status or current_status in ('NA', '--', 'NONE', '0'):
                                 employee_map[emp_id][row_date] = login if login else 'Present'
+                    elif row_date:
+                        print(f"      Warning: ID '{emp_id}' from daily sheet not found in monthly list.")
+
+
 
         # 6. Final Pass: Recalculate Attendance Totals and Percentages
         # This ensures that auto-populated daily data updates the summary counts
