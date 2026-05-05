@@ -12,45 +12,55 @@ from extract_data import run_extraction
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
+# Global cache
+cached_data = []
+last_sync_time = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager to handle background tasks."""
-    # Run extraction on startup
+    global cached_data, last_sync_time
     print("Startup: Running initial data extraction...")
     try:
-        run_extraction()
+        cached_data = run_extraction()
+        last_sync_time = os.path.getmtime(os.path.join(STATIC_DIR, "data.js")) if os.path.exists(os.path.join(STATIC_DIR, "data.js")) else None
     except Exception as e:
         print(f"Startup extraction failed: {e}")
     
-    # Start periodic background task (every 5 minutes)
+    # Start periodic background task
     task = asyncio.create_task(periodic_refresh())
     yield
-    # Cleanup
     task.cancel()
 
 async def periodic_refresh():
-    """Background task to refresh data from Google Sheets every 5 minutes."""
+    """Background task to refresh data from Google Sheets every 60 seconds."""
+    global cached_data
     while True:
         try:
-            await asyncio.sleep(60)  # Wait 1 minute
-            print("Background Task: Refreshing data from Google Sheets...")
-            run_extraction()
+            await asyncio.sleep(60)
+            print("Background Task: Refreshing data...")
+            newData = run_extraction()
+            if newData:
+                cached_data = newData
         except asyncio.CancelledError:
             break
         except Exception as e:
             print(f"Background refresh failed: {e}")
-            await asyncio.sleep(60)  # Wait a minute before retrying on failure
+            await asyncio.sleep(10)
 
 app = FastAPI(title="EL FRS Attendance Dashboard", lifespan=lifespan)
 
 @app.get("/api/data")
-async def get_attendance_data():
+async def get_attendance_data(force: bool = False):
     """Endpoint to return the latest extracted data."""
+    global cached_data
     try:
-        data = run_extraction()
-        return data
+        if force or not cached_data:
+            cached_data = run_extraction()
+        return cached_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.get("/")
