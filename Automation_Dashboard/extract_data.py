@@ -93,9 +93,21 @@ def parse_time_val(val):
 
 
 
+EXCLUDED_NAMES = [
+    "Chennupati Murali",
+    "Gade Ramya Manasa",
+    "Gogusetty Avinash",
+    "Komal Agarwal"
+]
+
 def apply_overrides(employees):
-    """Apply manual attendance overrides for specific employees."""
-    emp_lookup = {str(emp['Employee ID']): emp for emp in employees}
+    """Apply manual attendance overrides and filter out excluded employees."""
+    # 1. Filter out excluded names
+    filtered_employees = [e for e in employees if e.get('Employee Name') not in EXCLUDED_NAMES]
+    
+    # 2. Apply existing overrides
+    emp_lookup = {str(emp['Employee ID']): emp for emp in filtered_employees}
+
 
     overrides = {
         "EL1709": [  # Jyothi Babu Reddy
@@ -117,6 +129,8 @@ def apply_overrides(employees):
         if emp:
             for d in na_dates:
                 emp[d] = "NA"
+    return filtered_employees
+
 
 
 def run_extraction():
@@ -267,14 +281,16 @@ def run_extraction():
                 # 1. Date Detection in the row
                 for cell in row:
                     if cell is None: continue
-                    cell_str = str(cell)
-                    date_match = re.search(r'(\d+)-([A-Z]{3,})-(\d{4})|(\d{1,2}/\d{1,2}/\d{4})', cell_str, re.I)
+                    cell_str = str(cell).strip()
+                    # Support: 04-May-2026, 04-05-2026, 4/5/2026, 2026-05-04
+                    date_match = re.search(r'(\d{1,4}[-/]\d{1,2}[-/]\d{1,4})|(\d{1,2}-[A-Za-z]{3,}-\d{4})', cell_str)
                     if date_match:
                         parsed = parse_date_header(date_match.group(0))
                         if parsed:
                             current_date = parsed
-                            print(f"    Switching to daily date: {current_date}")
+                            print(f"    Detected date in sheet: {current_date} from '{cell_str}'")
                             break
+
                 
                 # 2. Header Detection
                 if any(h in row_str_vals for h in ['Employee ID', 'ID', 'Check In Time', 'Login']):
@@ -382,10 +398,10 @@ def run_extraction():
                     emp[f"{month_prefix}-Percentage"] = round((days_present / total_working_days) * 100, 2)
 
         # 7. Finalize
-        employees = list(employee_map.values())
-        apply_overrides(employees)
+        employees = apply_overrides(list(employee_map.values()))
 
         output_path = os.path.join("static", "data.js")
+
         last_updated = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         with open(output_path, "w") as f:
@@ -411,3 +427,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
