@@ -115,9 +115,15 @@ async function initDashboard() {
 
         if (!allEmployees || allEmployees.length === 0) throw new Error('No employee data found');
 
-
+        // Update Last Synced display
+        const syncText = document.getElementById('last-updated-text');
+        if (syncText) {
+            const now = new Date();
+            syncText.textContent = `Last Synced: ${now.toLocaleTimeString()}`;
+        }
 
         populateMonthSelectors(allEmployees);
+
 
         // Set default month (latest) if not already set
         const dateKeys = Object.keys(allEmployees[0]).filter(key => /^\d{4}-\d{2}-\d{2}$/.test(key));
@@ -646,13 +652,19 @@ function renderReports(data) {
     const body = document.getElementById('reports-body');
     if (!data || data.length === 0) return;
 
-    // 1. Identify relevant columns
+    // 1. Identify relevant columns (Exclude summary columns like -Attendence and -Percentage)
     const allKeys = Object.keys(data[0]);
     const metaKeys = ["Sr.No.", "Employee Name", "Employee ID", "Branch"];
-    const monthKeys = allKeys.filter(k => k.startsWith(currentMonth)).sort();
+    const monthKeys = allKeys.filter(k => 
+        k.startsWith(currentMonth) && 
+        !k.endsWith('-Attendence') && 
+        !k.endsWith('-Percentage') &&
+        /^\d{4}-\d{2}-\d{2}$/.test(k)
+    ).sort();
 
     // Combine meta and month-specific keys
     const displayKeys = [...metaKeys, ...monthKeys];
+
 
     // Header
     let headHtml = '<tr>';
@@ -676,6 +688,16 @@ function renderReports(data) {
 
             // Check for daily details (Login, Logout, etc.)
             const details = emp.daily_details ? emp.daily_details[k] : null;
+            if (details && lowerVal !== 'leave' && lowerVal !== 'sunday' && !lowerVal.includes('holiday')) {
+                detailsHtml = `
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; white-space: nowrap;">
+                        <span style="color: #10b981;">In:</span> ${details.login || '--'}<br>
+                        <span style="color: #ef4444;">Out:</span> ${details.logout || '--'}<br>
+                        <span style="color: #f59e0b;">Brk:</span> ${details.break || '--'}<br>
+                        <span style="color: #3b82f6;">Hrs:</span> ${details.total || '--'}
+                    </div>
+                `;
+            }
 
             if (lowerVal === 'leave') {
                 cls = 'class="cell-leave"';
@@ -694,12 +716,19 @@ function renderReports(data) {
                 cls = '';
             }
 
+            // Suppress the main status value if we have detailed daily data to avoid redundancy
+            let mainValHtml = val ? `<span class="cell-main-val">${val}</span>` : '';
+            if (detailsHtml && !isLeave && !isNA && !lowerVal.includes('holiday')) {
+                mainValHtml = ''; // Hide the '08:49' or 'Present' since details show it
+            }
+
             bodyHtml += `<td ${cls} data-status="${lowerVal}">
                 <div class="cell-content-wrapper">
-                    ${val ? `<span class="cell-main-val">${val}</span>` : ''}
+                    ${mainValHtml}
                     ${detailsHtml}
                 </div>
             </td>`;
+
         });
         bodyHtml += '</tr>';
     });
@@ -853,8 +882,15 @@ function renderBigCalendar(employees, year, month) {
             }
             cell.appendChild(badgesDiv);
 
+            // Add small daily metrics hint
+            const detailsDiv = document.createElement('div');
+            detailsDiv.style.cssText = 'font-size: 0.65rem; color: var(--text-muted); margin-top: 8px; border-top: 1px solid var(--glass-border); padding-top: 4px; line-height: 1.2; text-align: center;';
+            detailsDiv.innerHTML = `<span style="color: #10b981;">● Details Available</span>`;
+            cell.appendChild(detailsDiv);
+
             // Setup click event for the Day Modal
             cell.addEventListener('click', () => openDayModal(key, info, employees));
+
         }
 
         grid.appendChild(cell);
