@@ -105,8 +105,22 @@ def apply_overrides(employees):
     # 1. Filter out excluded names
     filtered_employees = [e for e in employees if e.get('Employee Name') not in EXCLUDED_NAMES]
     
-    # 2. Apply existing overrides
+    # 2. Add missing employees (Manual Injection)
+    names_in_data = [e.get('Employee Name') for e in filtered_employees]
+    if "Gowthami Budumuru" not in names_in_data:
+        filtered_employees.append({
+            "Sr.No.": "New",
+            "Employee Name": "Gowthami Budumuru",
+            "Employee ID": "EL_NEW_01",
+            "Branch": "AP Health",
+            "2026-05-Attendence": 0,
+            "2026-05-Percentage": 0,
+            "daily_details": {}
+        })
+
+    # 3. Apply existing overrides
     emp_lookup = {str(emp['Employee ID']): emp for emp in filtered_employees}
+
 
 
     overrides = {
@@ -427,4 +441,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
