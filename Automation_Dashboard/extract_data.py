@@ -95,14 +95,18 @@ def parse_time_val(val):
 
 EXCLUDED_NAMES = [
     "Chennupati Murali",
-    "Gade Ramya Manasa",
     "Gogusetty Avinash",
     "Komal Agarwal"
 ]
 
 def apply_overrides(employees):
     """Apply manual attendance overrides and filter out excluded employees."""
-    # 1. Filter out excluded names
+    # 1. Rename Gade Ramya Manasa to Gowthami Budumuru if she exists in data
+    for emp in employees:
+        if emp.get('Employee Name') == "Gade Ramya Manasa":
+            emp['Employee Name'] = "Gowthami Budumuru"
+
+    # 2. Filter out remaining excluded names
     filtered_employees = [e for e in employees if e.get('Employee Name') not in EXCLUDED_NAMES]
     
     # 3. Apply existing overrides
@@ -157,15 +161,17 @@ def run_extraction():
         # 3. Identify sheets
         month_sheet = None
         daily_sheets = []
-        print(f"Workbook sheets found: {', '.join(wb.sheetnames)}")
+        print(f"Scanning all sheets: {', '.join(wb.sheetnames)}")
         for name in wb.sheetnames:
             lname = name.lower().strip()
             if 'month' in lname: 
                 month_sheet = wb[name]
-                print(f"  Selected for Monthly parsing: '{name}'")
-            elif 'daily' in lname: 
+                print(f"  -> Monthly Summary: '{name}'")
+            else:
+                # Treat every other sheet as a potential daily sheet
                 daily_sheets.append(wb[name])
-                print(f"  Selected for Daily parsing: '{name}'")
+                print(f"  -> Potential Daily Sheet: '{name}'")
+
         
         if not month_sheet:
             month_sheet = wb.active
@@ -283,14 +289,18 @@ def run_extraction():
                 for cell in row:
                     if cell is None: continue
                     cell_str = str(cell).strip()
-                    # Support: 04-May-2026, 04-05-2026, 4/5/2026, 2026-05-04
-                    date_match = re.search(r'(\d{1,4}[-/]\d{1,2}[-/]\d{1,4})|(\d{1,2}-[A-Za-z]{3,}-\d{4})', cell_str)
+                    if not cell_str or len(cell_str) < 5: continue
+                    
+                    # More aggressive date search: handle "Monday, May 4", "04-05", etc.
+                    # Try to find anything that looks like a date
+                    date_match = re.search(r'(\d{1,4}[-/]\d{1,2}[-/]\d{1,4})|(\d{1,2}[-\s][A-Za-z]{3,}[-\s]\d{4})|([A-Za-z]{3,}\s\d{1,2})', cell_str)
                     if date_match:
-                        parsed = parse_date_header(date_match.group(0))
+                        parsed = parse_date_header(cell_str) # Try parsing the whole cell
                         if parsed:
                             current_date = parsed
-                            print(f"    Detected date in sheet: {current_date} from '{cell_str}'")
+                            print(f"    -> Found Active Date: {current_date} (from '{cell_str}')")
                             break
+
 
                 
                 # 2. Header Detection
@@ -345,13 +355,14 @@ def run_extraction():
                         # Update the calendar status
                         # Prefer 'total' hours if it looks like a time duration, otherwise fallback to 'Present'
                         current_status = str(employee_map[emp_id].get(row_date, '')).strip().upper()
-                        if not current_status or current_status in ('NA', '--', 'NONE', '0', ''):
+                        if not current_status or current_status in ('NA', '--', 'NONE', '0', '', 'P', 'PRESENT'):
                             if total:
                                 employee_map[emp_id][row_date] = total
                             elif login:
                                 employee_map[emp_id][row_date] = login
                             else:
                                 employee_map[emp_id][row_date] = 'Present'
+
 
                     elif row_date:
                         print(f"      Warning: ID '{emp_id}' from daily sheet not found in monthly list.")
