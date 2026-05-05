@@ -69,49 +69,70 @@ function getWorkingDaysDenominator(monthStr) {
     });
     return workingDays.length || 22;
 }
+function populateMonthSelectors(employees) {
+    if (!employees || employees.length === 0) return;
+    const dateKeys = Object.keys(employees[0]).filter(key => /^\d{4}-\d{2}-\d{2}$/.test(key));
+    const uniqueMonths = [...new Set(dateKeys.map(d => d.substring(0, 7)))].sort().reverse();
+
+    const monthSelector = document.getElementById('month-selector');
+    const reportsMonthSelector = document.getElementById('reports-month-selector');
+
+    [monthSelector, reportsMonthSelector].forEach(sel => {
+        if (!sel) return;
+        const previousVal = sel.value;
+        sel.innerHTML = '';
+        uniqueMonths.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            const [y, mm] = m.split('-');
+            const date = new Date(y, parseInt(mm) - 1, 1);
+            opt.textContent = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            sel.appendChild(opt);
+        });
+        // Restore selection if it still exists
+        if (uniqueMonths.includes(previousVal)) {
+            sel.value = previousVal;
+        } else if (uniqueMonths.includes(currentMonth)) {
+            sel.value = currentMonth;
+        }
+    });
+}
 
 async function initDashboard() {
     try {
-        // use static data first
-        allEmployees = attendanceData;
+        // Show loader immediately
+        const loader = document.getElementById('loading-overlay');
+        if (loader) loader.style.display = 'flex';
+
+        // Fetch fresh data from API
+        const response = await fetch('/api/data');
+        if (!response.ok) {
+            throw new Error('Could not load data from API.');
+        }
+        allEmployees = await response.json();
 
         if (!allEmployees || allEmployees.length === 0) throw new Error('No employee data found');
 
-        // 1. Identify all available months
+
+
+        populateMonthSelectors(allEmployees);
+
+        // Set default month (latest) if not already set
         const dateKeys = Object.keys(allEmployees[0]).filter(key => /^\d{4}-\d{2}-\d{2}$/.test(key));
         const uniqueMonths = [...new Set(dateKeys.map(d => d.substring(0, 7)))].sort().reverse();
+        
+        if (!currentMonth) {
+            currentMonth = uniqueMonths[0];
+            const mSel = document.getElementById('month-selector');
+            const rSel = document.getElementById('reports-month-selector');
+            if (mSel) mSel.value = currentMonth;
+            if (rSel) rSel.value = currentMonth;
+        }
 
-        // 2. Populate Month Selectors
-        const monthSelector = document.getElementById('month-selector');
-        const reportsMonthSelector = document.getElementById('reports-month-selector');
-
-        [monthSelector, reportsMonthSelector].forEach(sel => {
-            if (!sel) return;
-            sel.innerHTML = '';
-            uniqueMonths.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                const [y, mm] = m.split('-');
-                const date = new Date(y, parseInt(mm) - 1, 1);
-                opt.textContent = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                sel.appendChild(opt);
-            });
-        });
-
-        // Set default month (latest)
-        currentMonth = uniqueMonths[0];
-        if (monthSelector) monthSelector.value = currentMonth;
-        if (reportsMonthSelector) reportsMonthSelector.value = currentMonth;
 
         // Initial Render
         updateDashboardView();
         
-        // Show Last Updated
-        if (typeof LAST_UPDATED !== 'undefined') {
-            const lut = document.getElementById('last-updated-text');
-            if (lut) lut.textContent = `Updated: ${LAST_UPDATED}`;
-        }
-
         // Refresh Button logic
         const refreshBtn = document.getElementById('refresh-btn');
         if (refreshBtn) {
@@ -119,11 +140,28 @@ async function initDashboard() {
                 refreshBtn.classList.add('loading');
                 refreshBtn.disabled = true;
                 try {
-                    const response = await fetch('/api/data');
+                    // Force a fresh extraction on the backend
+                    const response = await fetch('/api/data?force=true');
                     if (response.ok) {
-                        window.location.reload();
+                        const newData = await response.json();
+                        if (newData && Array.isArray(newData)) {
+                            allEmployees = newData;
+                            populateMonthSelectors(allEmployees);
+                            updateDashboardView();
+                            
+                            // Update Last Updated Text
+                            const lut = document.getElementById('last-updated-text');
+                            if (lut) {
+                                const now = new Date();
+                                const timeStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+                                lut.textContent = `Updated: ${timeStr}`;
+                            }
+                            console.log("Dashboard forced sync successful.");
+                        }
                     } else {
-                        alert('Reload failed. Please try again.');
+                        const errData = await response.json().catch(() => ({}));
+                        const msg = errData.detail || 'Sync failed. Please try again.';
+                        alert('Sync failed: ' + msg);
                     }
                 } catch (e) {
                     console.error(e);
@@ -142,26 +180,32 @@ async function initDashboard() {
                 if (response.ok) {
                     const newData = await response.json();
                     if (newData && Array.isArray(newData)) {
-                        console.log("Data auto-synced from Google Sheets.");
+                        console.log("Data auto-synced.");
                         allEmployees = newData;
-                        updateDashboardView(); // Re-render seamlessly
+                        populateMonthSelectors(allEmployees);
+                        updateDashboardView();
                     }
                 }
             } catch (e) {
                 console.error("Auto-refresh failed", e);
             }
-        }, 60000); // 60,000ms = 1 minute
+        }, 60000);
 
         // 4. Setup Month Change Listeners
         const syncSelectors = (e) => {
             currentMonth = e.target.value;
-            if (monthSelector) monthSelector.value = currentMonth;
-            if (reportsMonthSelector) reportsMonthSelector.value = currentMonth;
+            const mSel = document.getElementById('month-selector');
+            const rSel = document.getElementById('reports-month-selector');
+            if (mSel) mSel.value = currentMonth;
+            if (rSel) rSel.value = currentMonth;
             updateDashboardView();
         };
 
-        if (monthSelector) monthSelector.addEventListener('change', syncSelectors);
-        if (reportsMonthSelector) reportsMonthSelector.addEventListener('change', syncSelectors);
+        const mSel = document.getElementById('month-selector');
+        const rSel = document.getElementById('reports-month-selector');
+        if (mSel) mSel.addEventListener('change', syncSelectors);
+        if (rSel) rSel.addEventListener('change', syncSelectors);
+
 
         // 5. Setup Sidebar Toggle
         const sidebar = document.getElementById('sidebar');
