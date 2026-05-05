@@ -110,11 +110,10 @@ def apply_overrides(employees):
 
 def run_extraction():
     """Main entry point to fetch and save the data."""
-    temp_path = None
-    daily_temp_path = None
     try:
         import openpyxl
         import time
+
         
         # 1. Get the export URL (XLSX)
         export_url = get_sheet_url_xlsx("GOOGLE_SHEET_URL")
@@ -126,12 +125,8 @@ def run_extraction():
         response = requests.get(export_url, timeout=60)
         response.raise_for_status()
         
-        # Save to temp file with unique name
-        temp_path = f"sheet_temp_{os.getpid()}_{int(time.time())}.xlsx"
-        with open(temp_path, "wb") as f:
-            f.write(response.content)
-
-        wb = openpyxl.load_workbook(temp_path, data_only=True)
+        from io import BytesIO
+        wb = openpyxl.load_workbook(BytesIO(response.content), data_only=True)
         
         # 3. Identify sheets
         month_sheet = None
@@ -152,13 +147,10 @@ def run_extraction():
             response_daily = requests.get(daily_export_url, timeout=60)
             response_daily.raise_for_status()
             
-            daily_temp_path = f"daily_temp_{os.getpid()}_{int(time.time())}.xlsx"
-            with open(daily_temp_path, "wb") as f:
-                f.write(response_daily.content)
-                
-            wb_daily = openpyxl.load_workbook(daily_temp_path, data_only=True)
+            wb_daily = openpyxl.load_workbook(BytesIO(response_daily.content), data_only=True)
             # If using a dedicated daily sheet, assume ALL tabs contain daily data, or at least parse them all
             daily_sheets = [wb_daily[name] for name in wb_daily.sheetnames]
+
 
         # 4. Parse Monthly Data
         rows = list(month_sheet.iter_rows(values_only=True))
@@ -372,17 +364,9 @@ def run_extraction():
         print(error_msg)
         traceback.print_exc()
         raise e
-    finally:
-        # Cleanup
-        for p in [temp_path, daily_temp_path]:
-            if p and os.path.exists(p):
-                try:
-                    os.remove(p)
-                except:
-                    pass
-
 
 def main():
+
     run_extraction()
 
 if __name__ == "__main__":
