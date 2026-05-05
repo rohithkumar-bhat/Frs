@@ -33,11 +33,11 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 async def periodic_refresh():
-    """Background task to refresh data from Google Sheets every 60 seconds."""
+    """Background task to refresh data from Google Sheets every 30 seconds."""
     global cached_data
     while True:
         try:
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
             print("Background Task: Refreshing data...")
             newData = run_extraction()
             if newData:
@@ -47,6 +47,7 @@ async def periodic_refresh():
         except Exception as e:
             print(f"Background refresh failed: {e}")
             await asyncio.sleep(10)
+
 
 app = FastAPI(title="EL FRS Attendance Dashboard", lifespan=lifespan)
 
