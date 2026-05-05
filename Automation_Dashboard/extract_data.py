@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 def get_sheet_url_xlsx(url_var="GOOGLE_SHEET_URL"):
     """Read the Google Sheets URL from .env and convert to XLSX export URL."""
     load_dotenv(override=True)
-    raw_url = os.getenv(url_var, "")
+    raw_url = os.getenv(url_var, "https://docs.google.com/spreadsheets/d/1XjfKJEW0sBLQGe6RIfULN-TR3Jfjcelp7bGamOrNOTQ/edit?gid=0#gid=0")
     if not raw_url:
         return None
 
@@ -108,21 +108,24 @@ def apply_overrides(employees):
 
 def run_extraction():
     """Main entry point to fetch and save the data."""
+    temp_path = None
+    daily_temp_path = None
     try:
         import openpyxl
+        import time
         
         # 1. Get the export URL (XLSX)
         export_url = get_sheet_url_xlsx("GOOGLE_SHEET_URL")
         if not export_url:
-            raise ValueError("No 'GOOGLE_SHEET_URL' found in .env file")
+            raise ValueError("No 'GOOGLE_SHEET_URL' found in .env or environment")
         print(f"Fetching XLSX from Google Sheets...")
 
         # 2. Fetch XLSX data
-        response = requests.get(export_url, timeout=30)
+        response = requests.get(export_url, timeout=60)
         response.raise_for_status()
         
-        # Save to temp file
-        temp_path = "sheet_temp.xlsx"
+        # Save to temp file with unique name
+        temp_path = f"sheet_temp_{os.getpid()}_{int(time.time())}.xlsx"
         with open(temp_path, "wb") as f:
             f.write(response.content)
 
@@ -144,10 +147,10 @@ def run_extraction():
         daily_export_url = get_sheet_url_xlsx("DAILY_SHEET_URL")
         if daily_export_url:
             print(f"Fetching Daily XLSX from dedicated Google Sheet...")
-            response_daily = requests.get(daily_export_url, timeout=30)
+            response_daily = requests.get(daily_export_url, timeout=60)
             response_daily.raise_for_status()
             
-            daily_temp_path = "daily_temp.xlsx"
+            daily_temp_path = f"daily_temp_{os.getpid()}_{int(time.time())}.xlsx"
             with open(daily_temp_path, "wb") as f:
                 f.write(response_daily.content)
                 
@@ -360,11 +363,22 @@ def run_extraction():
 
         print(f"SUCCESS: data.js created with {len(employees)} employees and {len(months_found)} months: {', '.join(months_found)}")
         return employees
+
     except Exception as e:
         import traceback
-        print(f"Extraction failed: {str(e)}")
+        error_msg = f"Extraction failed: {str(e)}"
+        print(error_msg)
         traceback.print_exc()
-        return None
+        raise e
+    finally:
+        # Cleanup
+        for p in [temp_path, daily_temp_path]:
+            if p and os.path.exists(p):
+                try:
+                    os.remove(p)
+                except:
+                    pass
+
 
 def main():
     run_extraction()
