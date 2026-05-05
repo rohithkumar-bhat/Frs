@@ -107,9 +107,11 @@ async function initDashboard() {
         // Fetch fresh data from API
         const response = await fetch('/api/data');
         if (!response.ok) {
-            throw new Error('Could not load data from API.');
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || 'Could not load data from API.');
         }
         allEmployees = await response.json();
+
 
         if (!allEmployees || allEmployees.length === 0) throw new Error('No employee data found');
 
