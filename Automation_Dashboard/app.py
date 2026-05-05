@@ -46,10 +46,12 @@ app = FastAPI(title="EL FRS Attendance Dashboard", lifespan=lifespan)
 @app.get("/api/data")
 async def get_attendance_data():
     """Endpoint to return the latest extracted data."""
-    data = run_extraction()
-    if data is None:
-        raise HTTPException(status_code=500, detail="Failed to fetch data from Google Sheets")
-    return data
+    try:
+        data = run_extraction()
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/")
 async def read_index():
