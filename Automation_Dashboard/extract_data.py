@@ -28,7 +28,9 @@ def get_sheet_url_xlsx(url_var="GOOGLE_SHEET_URL"):
         raise ValueError(f"Could not extract spreadsheet ID from {url_var}: {raw_url}")
 
     sheet_id = match.group(1)
-    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+    import time
+    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx&t={int(time.time())}"
+
 
 
 def parse_date_header(cell_val):
