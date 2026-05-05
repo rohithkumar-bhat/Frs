@@ -63,23 +63,34 @@ def parse_date_header(cell_val):
 
 
 def parse_time_val(val):
-    """Convert datetime.time or string time to HH:MM format."""
+    """Convert datetime.time, float (Excel time), or string time to HH:MM format."""
     if val is None or val == 0 or val == 0.0 or str(val).strip() == '------' or str(val).strip() == '':
         return None
+        
     if isinstance(val, (datetime,)):
         return val.strftime('%H:%M')
-    if hasattr(val, 'strftime'): # datetime.time
+    
+    # Handle datetime.time
+    import datetime as dt
+    if isinstance(val, dt.time):
         return val.strftime('%H:%M')
     
+    # Handle Excel float time (fraction of a day)
+    if isinstance(val, (int, float)):
+        total_seconds = int(val * 86400)
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"
+
     # Try parsing string if it's "HH:MM AM/PM" or just "HH:MM"
     s = str(val).strip()
-    # Remove ' PM' or ' AM' for easier parsing if needed, but I'll include formats
     for fmt in ('%I:%M %p', '%I:%M%p', '%H:%M:%S', '%H:%M'):
         try:
-            return datetime.strptime(s, fmt).strftime('%H:%M')
+            return dt.datetime.strptime(s, fmt).strftime('%H:%M')
         except ValueError:
             continue
     return s
+
 
 
 def apply_overrides(employees):
@@ -266,16 +277,25 @@ def run_extraction():
                             break
                 
                 # 2. Header Detection
-                if 'Employee ID' in row_str_vals or 'Check In Time' in row_str_vals:
+                if any(h in row_str_vals for h in ['Employee ID', 'ID', 'Check In Time', 'Login']):
+                    def find_col(aliases):
+                        for i, h in enumerate(row_str_vals):
+                            h_low = h.lower()
+                            if any(a.lower() in h_low for a in aliases):
+                                return i
+                        return -1
+
                     col_map = {
-                        'ID': row_str_vals.index('Employee ID') if 'Employee ID' in row_str_vals else -1,
-                        'Login': row_str_vals.index('Check In Time') if 'Check In Time' in row_str_vals else -1,
-                        'Logout': row_str_vals.index('Check Out Time') if 'Check Out Time' in row_str_vals else -1,
-                        'Total': row_str_vals.index('Total Duration (hh:mm)') if 'Total Duration (hh:mm)' in row_str_vals else -1,
-                        'Break': row_str_vals.index('Break Time(hh:mm)') if 'Break Time(hh:mm)' in row_str_vals else -1,
-                        'Date': next((i for i, h in enumerate(row_str_vals) if 'date' in h.lower()), -1),
+                        'ID': find_col(['Employee ID', 'ID']),
+                        'Login': find_col(['Check In Time', 'In Time', 'Login', 'Check-In', 'Time In']),
+                        'Logout': find_col(['Check Out Time', 'Out Time', 'Logout', 'Check-Out', 'Time Out']),
+                        'Total': find_col(['Total Duration', 'Duration', 'Working Hours', 'Total Hours', 'Work Time']),
+                        'Break': find_col(['Break Time', 'Break Duration', 'Break']),
+                        'Date': find_col(['Date', 'Day']),
                     }
+                    print(f"    Detected daily columns: {col_map}")
                     continue
+
 
                 # 3. Data Processing
                 if col_map and col_map['ID'] != -1 and col_map['ID'] < len(row):
@@ -296,19 +316,26 @@ def run_extraction():
                         total = parse_time_val(row[col_map['Total']]) if col_map['Total'] != -1 and col_map['Total'] < len(row) else None
                         break_t = parse_time_val(row[col_map['Break']]) if col_map['Break'] != -1 and col_map['Break'] < len(row) else None
                         
-                        if login or logout or total:
-                            employee_map[emp_id]['daily_details'][row_date] = {
-                                'login': login,
-                                'logout': logout,
-                                'break': break_t,
-                                'total': total
-                            }
-                            print(f"      Matched: {emp_id} on {row_date} ({login or 'No Login'})")
-                            
-                            # Automatically update calendar status if not already set or NA
-                            current_status = str(employee_map[emp_id].get(row_date, '')).strip().upper()
-                            if not current_status or current_status in ('NA', '--', 'NONE', '0'):
-                                employee_map[emp_id][row_date] = login if login else 'Present'
+                        # Store the granular details for the modal
+                        employee_map[emp_id]['daily_details'][row_date] = {
+                            'login': login,
+                            'logout': logout,
+                            'break': break_t,
+                            'total': total
+                        }
+                        print(f"      Mapped: {emp_id} on {row_date} (In: {login}, Out: {logout}, Work: {total})")
+                        
+                        # Update the calendar status
+                        # Prefer 'total' hours if it looks like a time duration, otherwise fallback to 'Present'
+                        current_status = str(employee_map[emp_id].get(row_date, '')).strip().upper()
+                        if not current_status or current_status in ('NA', '--', 'NONE', '0', ''):
+                            if total:
+                                employee_map[emp_id][row_date] = total
+                            elif login:
+                                employee_map[emp_id][row_date] = login
+                            else:
+                                employee_map[emp_id][row_date] = 'Present'
+
                     elif row_date:
                         print(f"      Warning: ID '{emp_id}' from daily sheet not found in monthly list.")
 
