@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 def get_sheet_url_xlsx(url_var="GOOGLE_SHEET_URL"):
     """Read the Google Sheets URL from .env and convert to XLSX export URL."""
     load_dotenv(override=True)
-    raw_url = os.getenv(url_var, "")
+    raw_url = os.getenv(url_var, "https://docs.google.com/spreadsheets/d/1XjfKJEW0sBLQGe6RIfULN-TR3Jfjcelp7bGamOrNOTQ/edit?gid=0#gid=0")
     if not raw_url:
         return None
 
