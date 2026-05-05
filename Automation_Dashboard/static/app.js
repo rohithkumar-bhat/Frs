@@ -922,9 +922,10 @@ function openDayModal(dateKey, info, allEmployees) {
     sortedDays.forEach(item => {
         const row = document.createElement('div');
         row.className = 'emp-modal-row';
-        const isPresent = item.status === 'present';
-        const isLeave = item.status === 'leave';
-        const isNA = item.status === 'na';
+        const statusRaw = (item.emp[dateKey] || '').toString().toLowerCase();
+        const isLeave = statusRaw === 'leave';
+        const isNA = statusRaw === 'na' || statusRaw === '--' || statusRaw === '0';
+        const isPresent = statusRaw !== '' && !isLeave && !isNA && statusRaw !== 'sunday' && !statusRaw.includes('holiday');
 
         let badgeSpan = '';
         let detailHtml = '';
@@ -970,6 +971,7 @@ function openDayModal(dateKey, info, allEmployees) {
             const metricsDiv = document.getElementById('emp-day-metrics');
 
             if (isPresent) {
+
                 statusCard.style.background = 'rgba(16, 185, 129, 0.1)';
                 statusCard.style.borderColor = 'rgba(16, 185, 129, 0.3)';
                 statusLabel.style.color = '#065f46';
