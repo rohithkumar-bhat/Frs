@@ -688,16 +688,6 @@ function renderReports(data) {
 
             // Check for daily details (Login, Logout, etc.)
             const details = emp.daily_details ? emp.daily_details[k] : null;
-            if (details && lowerVal !== 'leave' && lowerVal !== 'sunday' && !lowerVal.includes('holiday')) {
-                detailsHtml = `
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; white-space: nowrap;">
-                        <span style="color: #10b981;">In:</span> ${details.login || '--'}<br>
-                        <span style="color: #ef4444;">Out:</span> ${details.logout || '--'}<br>
-                        <span style="color: #f59e0b;">Brk:</span> ${details.break || '--'}<br>
-                        <span style="color: #3b82f6;">Hrs:</span> ${details.total || '--'}
-                    </div>
-                `;
-            }
 
             if (lowerVal === 'leave') {
                 cls = 'class="cell-leave"';
@@ -714,13 +704,13 @@ function renderReports(data) {
                 val = 'Holiday';
             } else {
                 cls = '';
+                // It's a working day. We only want to show the total Working Hours.
+                if (details && details.total) {
+                    val = details.total;
+                }
             }
 
-            // Suppress the main status value if we have detailed daily data to avoid redundancy
             let mainValHtml = val ? `<span class="cell-main-val">${val}</span>` : '';
-            if (detailsHtml && !isLeave && !isNA && !lowerVal.includes('holiday')) {
-                mainValHtml = ''; // Hide the '08:49' or 'Present' since details show it
-            }
 
             bodyHtml += `<td ${cls} data-status="${lowerVal}">
                 <div class="cell-content-wrapper">
@@ -967,13 +957,14 @@ function openDayModal(dateKey, info, allEmployees) {
         let detailHtml = '';
         
         const details = item.emp.daily_details ? item.emp.daily_details[dateKey] : null;
-        if (details && isPresent) {
+        if (isPresent) {
+            const d = details || { login: '--:--', logout: '--:--', break: '--:--', total: '--:--' };
             detailHtml = `
-                <div class="modal-emp-details">
-                    <span>In: ${details.login}</span> &middot; 
-                    <span>Out: ${details.logout}</span> &middot; 
-                    <span>Brk: ${details.break || '--'}</span> &middot; 
-                    <span>Work: ${details.total}</span>
+                <div class="modal-emp-details" style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+                    <span>Clock In: ${d.login || '--:--'}</span> &middot; 
+                    <span>Clock Out: ${d.logout || '--:--'}</span> &middot; 
+                    <span>Break Info: ${d.break || '--:--'}</span> &middot; 
+                    <span>Working Hours: ${d.total || '--:--'}</span>
                 </div>
             `;
         }
@@ -1015,15 +1006,12 @@ function openDayModal(dateKey, info, allEmployees) {
                 statusVal.style.color = '#10b981';
                 statusVal.textContent = String(rawStatus).toUpperCase();
 
-                if (details) {
-                    metricsDiv.style.display = 'grid';
-                    document.getElementById('emp-day-login').textContent = details.login || '--:--';
-                    document.getElementById('emp-day-logout').textContent = details.logout || '--:--';
-                    document.getElementById('emp-day-break').textContent = details.break || '--:--';
-                    document.getElementById('emp-day-total').textContent = details.total || '--:--';
-                } else {
-                    metricsDiv.style.display = 'none';
-                }
+                const d = details || { login: '--:--', logout: '--:--', break: '--:--', total: '--:--' };
+                metricsDiv.style.display = 'grid';
+                document.getElementById('emp-day-login').textContent = d.login || '--:--';
+                document.getElementById('emp-day-logout').textContent = d.logout || '--:--';
+                document.getElementById('emp-day-break').textContent = d.break || '--:--';
+                document.getElementById('emp-day-total').textContent = d.total || '--:--';
             } else {
                 metricsDiv.style.display = 'none';
                 if (isLeave) {
