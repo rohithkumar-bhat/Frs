@@ -48,12 +48,17 @@ def parse_date_header(cell_val):
     if not date_str:
         return None
         
-    # Handle full datetime strings from str(datetime)
-    if ' ' in date_str:
-        date_str = date_str.split(' ')[0]
+    # Extract date using regex if there's surrounding text
+    match = re.search(r'(\d{1,2}[-/A-Za-z]+[-/]\d{2,4})|(\d{4}[-/]\d{1,2}[-/]\d{1,2})', date_str)
+    if match:
+        date_str = match.group(0)
+    else:
+        # Handle full datetime strings from str(datetime)
+        if ' ' in date_str:
+            date_str = date_str.split(' ')[0]
 
     # Try various formats
-    for fmt in ('%m/%d/%Y', '%m-%d-%Y', '%Y-%m-%d', '%d-%m-%Y', '%d-%b-%Y', '%d-%B-%Y'):
+    for fmt in ('%m/%d/%Y', '%m-%d-%Y', '%Y-%m-%d', '%d-%m-%Y', '%d-%b-%Y', '%d-%B-%Y', '%d/%m/%Y', '%Y/%m/%d'):
         try:
             dt = datetime.strptime(date_str, fmt)
             return dt.strftime('%Y-%m-%d')
