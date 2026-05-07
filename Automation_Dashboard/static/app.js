@@ -1,4 +1,7 @@
 let employees = [];
+let sessionTimeout;
+const SESSION_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+
 
 // Privacy Login Intercept
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,6 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Trigger reflow for fade transition
                     void mainDashboard.offsetWidth;
                     mainDashboard.style.opacity = '1';
+                    
+                    // Start 15-minute session timer
+                    startSessionTimer();
                 }, 400);
             } else {
                 loginError.style.display = 'block';
@@ -31,7 +37,69 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Global click listener to clear highlights/focus
+    document.addEventListener('mousedown', (e) => {
+        // If clicking outside of highlighted elements and not on trigger buttons
+        if (!e.target.closest('.employee-detail-card') && 
+            !e.target.closest('.view-btn-new') && 
+            !e.target.closest('.clickable-stat') &&
+            !e.target.closest('#reports-table')) {
+            clearAllHighlights();
+        }
+    });
+
+    // Close modals on background click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.style.display = 'none';
+            }
+        });
+    });
+
+    // Inactivity Tracking
+    ['mousemove', 'keydown', 'click', 'scroll'].forEach(event => {
+        document.addEventListener(event, resetSessionTimer);
+    });
 });
+
+function resetSessionTimer() {
+    const mainDashboard = document.getElementById('main-dashboard');
+    if (mainDashboard && mainDashboard.style.display !== 'none') {
+        startSessionTimer();
+    }
+}
+
+function startSessionTimer() {
+    if (sessionTimeout) clearTimeout(sessionTimeout);
+    sessionTimeout = setTimeout(() => {
+        logout();
+    }, SESSION_DURATION);
+}
+
+function logout() {
+    const loginScreen = document.getElementById('login-screen');
+    const mainDashboard = document.getElementById('main-dashboard');
+    
+    mainDashboard.style.opacity = '0';
+    setTimeout(() => {
+        mainDashboard.style.display = 'none';
+        loginScreen.style.display = 'flex';
+        void loginScreen.offsetWidth;
+        loginScreen.style.opacity = '1';
+        
+        // Clear sensitive data if needed
+        document.getElementById('login-pass').value = '';
+        alert("Session expired. Please login again for security.");
+    }, 400);
+}
+
+function clearAllHighlights() {
+    document.querySelectorAll('.highlight-top, .highlight-focus, .highlight-report-row, .report-highlight')
+        .forEach(el => el.classList.remove('highlight-top', 'highlight-focus', 'highlight-report-row', 'report-highlight', 'highlight-green', 'highlight-red'));
+}
+
 
 // Initialize Dashboard Data
 document.addEventListener('DOMContentLoaded', () => {
@@ -984,6 +1052,11 @@ function openDayModal(dateKey, info, allEmployees) {
 
         // Click on employee to open day data modal
         row.addEventListener('click', () => {
+            const statusRawInner = (item.emp[dateKey] || '').toString().toLowerCase();
+            const isLeaveInner = statusRawInner === 'leave';
+            const isNAInner = statusRawInner === 'na' || statusRawInner === '--' || statusRawInner === '0';
+            const isPresentInner = statusRawInner !== '' && !isLeaveInner && !isNAInner && statusRawInner !== 'sunday' && !statusRawInner.includes('holiday');
+
             document.getElementById('emp-day-modal').style.display = 'flex';
             document.getElementById('emp-day-name').textContent = item.emp['Employee Name'];
             document.getElementById('emp-day-date').textContent = ds;
@@ -994,11 +1067,10 @@ function openDayModal(dateKey, info, allEmployees) {
             const statusCard = document.getElementById('emp-day-status-card');
             const statusLabel = document.getElementById('emp-day-status-label');
             const statusVal = document.getElementById('emp-day-status-value');
-                      const rawStatus = item.emp[dateKey] || 'N/A';
+            const rawStatus = item.emp[dateKey] || 'N/A';
             const metricsDiv = document.getElementById('emp-day-metrics');
 
-            if (isPresent) {
-
+            if (isPresentInner) {
                 statusCard.style.background = 'rgba(16, 185, 129, 0.1)';
                 statusCard.style.borderColor = 'rgba(16, 185, 129, 0.3)';
                 statusLabel.style.color = '#065f46';
@@ -1014,14 +1086,14 @@ function openDayModal(dateKey, info, allEmployees) {
                 document.getElementById('emp-day-total').textContent = d.total || '--:--';
             } else {
                 metricsDiv.style.display = 'none';
-                if (isLeave) {
+                if (isLeaveInner) {
                     statusCard.style.background = 'rgba(239, 68, 68, 0.1)';
                     statusCard.style.borderColor = 'rgba(239, 68, 68, 0.3)';
                     statusLabel.style.color = '#991b1b';
                     statusLabel.textContent = 'Status';
                     statusVal.style.color = '#ef4444';
                     statusVal.textContent = String(rawStatus).toUpperCase();
-                } else if (isNA) {
+                } else if (isNAInner) {
                     statusCard.style.background = 'rgba(245, 158, 11, 0.1)';
                     statusCard.style.borderColor = 'rgba(245, 158, 11, 0.3)';
                     statusLabel.style.color = '#b45309';
