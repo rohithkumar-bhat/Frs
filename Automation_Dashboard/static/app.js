@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Start 15-minute session timer
                     startSessionTimer();
+
+                    // Display Login Time
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const loginDisplay = document.getElementById('session-login-time');
+                    if (loginDisplay) loginDisplay.textContent = `Logged in: ${timeStr}`;
                 }, 400);
             } else {
                 loginError.style.display = 'block';
@@ -91,6 +97,9 @@ function logout() {
         
         // Clear sensitive data if needed
         document.getElementById('login-pass').value = '';
+        const loginDisplay = document.getElementById('session-login-time');
+        if (loginDisplay) loginDisplay.textContent = 'Logged in: --:--';
+
         alert("Session expired. Please login again for security.");
     }, 400);
 }
